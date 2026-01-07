@@ -75,7 +75,9 @@ services:
   
   # Add the watchdog service
   watchdog:
-    image: container-failover:latest  # Or build from Dockerfile
+    build: ./path/to/container-failover  # Build from cloned repo
+    # OR use a pre-built image:
+    # image: container-failover:latest
     container_name: watchdog
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -87,6 +89,13 @@ services:
       - CONTAINER_NAME=your-primary-container
       - BACKUP_CONTAINER_NAME=your-backup-container
     restart: unless-stopped
+```
+
+To build the image locally:
+```bash
+git clone https://github.com/omar10594/container-failover.git
+cd container-failover
+docker build -t container-failover:latest .
 ```
 
 **Note**: The primary and backup containers can be:
@@ -110,7 +119,7 @@ services:
 
 ## Example Scenario
 
-Consider a setup where you have a primary service and a backup service that should never run simultaneously. These services can be:
+Consider a setup where you have a primary service and a backup service. These services can be:
 - On the same Docker host
 - On different Docker hosts (remote services)
 - In different data centers or availability zones
@@ -124,6 +133,8 @@ Consider a setup where you have a primary service and a backup service that shou
    - Starts `backup-container`
 5. After 60 seconds, watchdog attempts to start primary
 6. If primary is healthy again, it switches back; otherwise, backup remains active
+
+**Note**: During failover transitions, there may be brief periods (a few seconds) where both containers are running or both are stopped.
 
 ## Testing
 
