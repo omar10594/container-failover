@@ -1,0 +1,58 @@
+# This is an EXAMPLE docker-compose file showing all components together.
+# In production, you typically only need the watchdog service block.
+# Copy the watchdog service to your own docker-compose.yml and configure
+# it to monitor your primary service (which can be remote or local).
+#
+# NOTE: The watchdog does NOT manage the primary service/container.
+# It only monitors the primary health URL and manages the backup container.
+
+services:
+  # Example primary service (nginx)
+  primary-container:
+    image: nginx:alpine
+    container_name: primary-container
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --spider -q http://localhost:80 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Example backup service (nginx)
+  backup-container:
+    image: nginx:alpine
+    container_name: backup-container
+    ports:
+      - "8081:80"
+    profiles:
+      - backup
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --spider -q http://localhost:80 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Watchdog service
+  watchdog:
+    build: .
+    container_name: watchdog
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PRIMARY_HEALTH_URL=http://primary-container:80
+      # Note: In this example, primary-container is local, but it can be any remote URL
+      # The watchdog only monitors the URL and manages the backup container
+      - CHECK_EVERY=10
+      - FAIL_THRESHOLD=3
+      - RECOVER_SECONDS=60
+      - BACKUP_CONTAINER_NAME=backup-container
+    depends_on:
+      - primary-container
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
