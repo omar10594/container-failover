@@ -8,7 +8,7 @@ services:
     ports:
       - "8080:80"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      test: ["CMD", "sh", "-c", "wget --spider -q http://localhost:80 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -22,7 +22,7 @@ services:
     profiles:
       - backup
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      test: ["CMD", "sh", "-c", "wget --spider -q http://localhost:80 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -35,6 +35,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - PRIMARY_HEALTH_URL=http://primary-container:80
+      # Note: nginx:alpine serves on port 80 by default
+      # For production, point to your actual health endpoint (e.g., /health)
       - CHECK_EVERY=10
       - FAIL_THRESHOLD=3
       - RECOVER_SECONDS=60
