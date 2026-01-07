@@ -1,21 +1,21 @@
 #!/bin/sh
 
 # Container Failover Watchdog Script
-# Monitors a primary service and manages container failover
+# Monitors a primary service health URL and manages backup container failover
+# NOTE: This script does NOT manage the primary container as it may be remote.
+#       External logic should handle primary container recovery.
 
 # Configuration from environment variables with defaults
 PRIMARY_HEALTH_URL="${PRIMARY_HEALTH_URL:-http://localhost:8080/health}"
 CHECK_EVERY="${CHECK_EVERY:-10}"
 FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
 RECOVER_SECONDS="${RECOVER_SECONDS:-60}"
-CONTAINER_NAME="${CONTAINER_NAME:-primary-container}"
 BACKUP_CONTAINER_NAME="${BACKUP_CONTAINER_NAME:-backup-container}"
 HEALTH_CHECK_TIMEOUT="${HEALTH_CHECK_TIMEOUT:-5}"
-CONTAINER_START_WAIT="${CONTAINER_START_WAIT:-5}"
 
 # Internal state variables
 fail_count=0
-primary_down=false
+backup_active=false
 last_failover_time=0
 
 log() {
@@ -31,18 +31,6 @@ check_health() {
     fi
 }
 
-stop_container() {
-    local container=$1
-    log "Stopping container: $container"
-    if docker ps -q -f name="^${container}$" | grep -q .; then
-        if ! docker stop "$container" 2>/dev/null; then
-            log "Warning: Failed to stop $container"
-        fi
-    else
-        log "Container $container is not running"
-    fi
-}
-
 start_container() {
     local container=$1
     log "Starting container: $container"
@@ -55,14 +43,25 @@ start_container() {
     fi
 }
 
+stop_container() {
+    local container=$1
+    log "Stopping container: $container"
+    if docker ps -q -f name="^${container}$" | grep -q .; then
+        if ! docker stop "$container" 2>/dev/null; then
+            log "Warning: Failed to stop $container"
+        fi
+    else
+        log "Container $container is not running"
+    fi
+}
+
 perform_failover() {
     log "FAILOVER: Primary service has failed $FAIL_THRESHOLD times"
-    log "FAILOVER: Stopping primary container and starting backup"
+    log "FAILOVER: Starting backup container"
     
-    stop_container "$CONTAINER_NAME"
     start_container "$BACKUP_CONTAINER_NAME"
     
-    primary_down=true
+    backup_active=true
     last_failover_time=$(date +%s)
     fail_count=0
     
@@ -74,21 +73,16 @@ attempt_recovery() {
     local time_since_failover=$((current_time - last_failover_time))
     
     if [ "$time_since_failover" -ge "$RECOVER_SECONDS" ]; then
-        log "RECOVERY: Attempting to recover primary service"
-        
-        start_container "$CONTAINER_NAME"
-        # Wait for container to start before checking health
-        sleep "$CONTAINER_START_WAIT"
+        log "RECOVERY: Checking if primary service is available again"
         
         if check_health "$PRIMARY_HEALTH_URL"; then
-            log "RECOVERY: Primary service is healthy, switching back"
+            log "RECOVERY: Primary service is healthy, stopping backup"
             stop_container "$BACKUP_CONTAINER_NAME"
-            primary_down=false
+            backup_active=false
             fail_count=0
-            log "RECOVERY: Completed. Primary container is now active"
+            log "RECOVERY: Completed. Primary service is active, backup stopped"
         else
             log "RECOVERY: Primary service still unhealthy, keeping backup active"
-            stop_container "$CONTAINER_NAME"
             last_failover_time=$current_time
         fi
     fi
@@ -101,13 +95,12 @@ log "  PRIMARY_HEALTH_URL: $PRIMARY_HEALTH_URL"
 log "  CHECK_EVERY: ${CHECK_EVERY}s"
 log "  FAIL_THRESHOLD: $FAIL_THRESHOLD"
 log "  RECOVER_SECONDS: ${RECOVER_SECONDS}s"
-log "  CONTAINER_NAME: $CONTAINER_NAME"
 log "  BACKUP_CONTAINER_NAME: $BACKUP_CONTAINER_NAME"
 log "==========================================="
 
 while true; do
-    if [ "$primary_down" = false ]; then
-        # Primary is supposed to be active, check its health
+    if [ "$backup_active" = false ]; then
+        # Backup is not active, check primary health
         if check_health "$PRIMARY_HEALTH_URL"; then
             if [ "$fail_count" -gt 0 ]; then
                 log "Primary service recovered (was failing $fail_count times)"
@@ -122,7 +115,7 @@ while true; do
             fi
         fi
     else
-        # Primary is down, check if it's time to attempt recovery
+        # Backup is active, check if primary is available again
         attempt_recovery
     fi
     

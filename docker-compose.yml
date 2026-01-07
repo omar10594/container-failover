@@ -3,7 +3,10 @@ version: '3.8'
 # This is an EXAMPLE docker-compose file showing all components together.
 # In production, you typically only need the watchdog service block.
 # Copy the watchdog service to your own docker-compose.yml and configure
-# it to monitor your existing containers (which can be remote or local).
+# it to monitor your primary service (which can be remote or local).
+#
+# NOTE: The watchdog does NOT manage the primary service/container.
+# It only monitors the primary health URL and manages the backup container.
 
 services:
   # Example primary service (nginx)
@@ -40,12 +43,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - PRIMARY_HEALTH_URL=http://primary-container:80
-      # Note: nginx:alpine serves on port 80 by default
-      # For production, point to your actual health endpoint (e.g., /health)
+      # Note: In this example, primary-container is local, but it can be any remote URL
+      # The watchdog only monitors the URL and manages the backup container
       - CHECK_EVERY=10
       - FAIL_THRESHOLD=3
       - RECOVER_SECONDS=60
-      - CONTAINER_NAME=primary-container
       - BACKUP_CONTAINER_NAME=backup-container
     depends_on:
       - primary-container
