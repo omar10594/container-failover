@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Example primary service (nginx)
+  primary-container:
+    image: nginx:alpine
+    container_name: primary-container
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Example backup service (nginx)
+  backup-container:
+    image: nginx:alpine
+    container_name: backup-container
+    ports:
+      - "8081:80"
+    profiles:
+      - backup
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Watchdog service
+  watchdog:
+    build: .
+    container_name: watchdog
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PRIMARY_HEALTH_URL=http://primary-container:80
+      - CHECK_EVERY=10
+      - FAIL_THRESHOLD=3
+      - RECOVER_SECONDS=60
+      - CONTAINER_NAME=primary-container
+      - BACKUP_CONTAINER_NAME=backup-container
+    depends_on:
+      - primary-container
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
