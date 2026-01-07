@@ -14,7 +14,7 @@ This watchdog monitors a primary service's health endpoint (URL) and manages aut
 - **Remote Primary Support**: Primary service can be on any host accessible via HTTP
 - **Configurable Thresholds**: Customize check intervals, failure thresholds, and recovery times
 - **Docker-based**: Lightweight container based on `docker:cli` image
-- **Docker Hub**: Available as `omar10594/container-failover`
+- **Docker Hub**: Available as `omar10594/container-watchdog`
 
 ## Configuration
 
@@ -42,13 +42,13 @@ docker run -d \
   -e FAIL_THRESHOLD=3 \
   -e RECOVER_SECONDS=60 \
   -e BACKUP_CONTAINER_NAME=backup-container \
-  omar10594/container-failover:latest
+  omar10594/container-watchdog:latest
 ```
 
 ### Building from Source
 
 ```bash
-docker build -t container-failover .
+docker build -t container-watchdog .
 
 docker run -d \
   --name watchdog \
@@ -58,7 +58,7 @@ docker run -d \
   -e FAIL_THRESHOLD=3 \
   -e RECOVER_SECONDS=60 \
   -e BACKUP_CONTAINER_NAME=backup-container \
-  container-failover
+  container-watchdog
 ```
 
 ### Using Docker Compose
@@ -88,7 +88,7 @@ services:
   
   # Add the watchdog service
   watchdog:
-    image: omar10594/container-failover:latest
+    image: omar10594/container-watchdog:latest
     container_name: watchdog
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -103,9 +103,9 @@ services:
 
 To build the image locally:
 ```bash
-git clone https://github.com/omar10594/container-failover.git
-cd container-failover
-docker build -t container-failover:latest .
+git clone https://github.com/omar10594/container-watchdog.git
+cd container-watchdog
+docker build -t container-watchdog:latest .
 ```
 
 **Note**: 
@@ -154,7 +154,7 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e PRIMARY_HEALTH_URL=http://your-primary:8080/health \
   -e BACKUP_CONTAINER_NAME=backup-container \
-  omar10594/container-failover:latest
+  omar10594/container-watchdog:latest
 
 # Watch the watchdog logs
 docker logs -f watchdog
@@ -189,13 +189,13 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e PRIMARY_HEALTH_URL=http://remote-primary:8080/health \
   -e BACKUP_CONTAINER_NAME=local-backup-container \
-  omar10594/container-failover:latest
+  omar10594/container-watchdog:latest
 ```
 
 ## Docker Hub
 
 The image is automatically published to Docker Hub on commits to the main branch:
-- **Image**: `omar10594/container-failover`
+- **Image**: `omar10594/container-watchdog`
 - **Tags**: `latest`, branch names, version tags (e.g., `v1.0.0`)
 
 ### Setting up Docker Hub Publishing

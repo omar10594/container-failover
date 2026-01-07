@@ -1,4 +1,4 @@
-FROM docker:cli
+FROM docker:27-cli
 
 # Install wget for health checks
 RUN apk add --no-cache wget
