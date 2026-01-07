@@ -1,5 +1,10 @@
 version: '3.8'
 
+# This is an EXAMPLE docker-compose file showing all components together.
+# In production, you typically only need the watchdog service block.
+# Copy the watchdog service to your own docker-compose.yml and configure
+# it to monitor your existing containers (which can be remote or local).
+
 services:
   # Example primary service (nginx)
   primary-container:

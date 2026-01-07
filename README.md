@@ -50,6 +50,10 @@ docker run -d \
 
 ### Using Docker Compose
 
+The watchdog can be deployed alongside your services or independently. The primary and backup containers **do not need to be in the same docker-compose file** - they can be remote services running on different hosts.
+
+#### Option 1: All services in the same docker-compose file
+
 1. Update the `docker-compose.yml` with your service configuration
 2. Start the services:
 
@@ -60,6 +64,35 @@ docker-compose up -d
 # Create the backup container (initially stopped)
 docker-compose --profile backup up -d --no-start backup-container
 ```
+
+#### Option 2: Watchdog in your own docker-compose file (Recommended)
+
+Most users will want to copy just the watchdog service block and add it to their existing docker-compose files:
+
+```yaml
+services:
+  # Your existing services here...
+  
+  # Add the watchdog service
+  watchdog:
+    image: container-failover:latest  # Or build from Dockerfile
+    container_name: watchdog
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PRIMARY_HEALTH_URL=http://your-primary-service:8080/health
+      - CHECK_EVERY=10
+      - FAIL_THRESHOLD=3
+      - RECOVER_SECONDS=60
+      - CONTAINER_NAME=your-primary-container
+      - BACKUP_CONTAINER_NAME=your-backup-container
+    restart: unless-stopped
+```
+
+**Note**: The primary and backup containers can be:
+- In the same docker-compose file
+- In different docker-compose files on the same host
+- On completely different remote hosts (as long as they're accessible via Docker socket or remote Docker API)
 
 ## How It Works
 
@@ -77,9 +110,13 @@ docker-compose --profile backup up -d --no-start backup-container
 
 ## Example Scenario
 
-Consider two servers with the same service, but only one should be active at a time:
+Consider a setup where you have a primary service and a backup service that should never run simultaneously. These services can be:
+- On the same Docker host
+- On different Docker hosts (remote services)
+- In different data centers or availability zones
 
-1. Both containers exist: `primary-container` and `backup-container`
+**Scenario**:
+1. Both containers exist: `primary-container` and `backup-container` (can be on same or different hosts)
 2. Primary is running, backup is stopped
 3. Primary service becomes unhealthy (e.g., database connection lost)
 4. After 3 failed checks (taking up to 30 seconds with default settings), watchdog:
@@ -111,6 +148,25 @@ docker stop primary-container
 - Docker Engine with access to Docker socket (`/var/run/docker.sock`)
 - Primary and backup containers must exist (can be stopped)
 - Health endpoint must be accessible from the watchdog container
+
+### Working with Remote Containers
+
+The watchdog can manage containers on remote Docker hosts by configuring the Docker client to connect to a remote Docker daemon. You have several options:
+
+1. **Local containers**: Default behavior, manages containers on the same host via `/var/run/docker.sock`
+2. **Remote Docker API**: Set `DOCKER_HOST` environment variable to connect to a remote Docker daemon
+3. **Docker Context**: Use Docker contexts to switch between different Docker environments
+
+Example for remote containers:
+```bash
+docker run -d \
+  --name watchdog \
+  -e DOCKER_HOST=tcp://remote-host:2376 \
+  -e PRIMARY_HEALTH_URL=http://remote-primary:8080/health \
+  -e CONTAINER_NAME=remote-primary-container \
+  -e BACKUP_CONTAINER_NAME=remote-backup-container \
+  container-failover
+```
 
 ## Security Considerations
 
