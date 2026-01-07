@@ -26,6 +26,8 @@ The watchdog is configured using environment variables:
 | `RECOVER_SECONDS` | Time to wait before attempting recovery | `60` |
 | `CONTAINER_NAME` | Name of the primary container to manage | `primary-container` |
 | `BACKUP_CONTAINER_NAME` | Name of the backup container to start on failover | `backup-container` |
+| `HEALTH_CHECK_TIMEOUT` | Timeout for health check requests in seconds | `5` |
+| `CONTAINER_START_WAIT` | Time to wait for container to start before health check | `5` |
 
 ## Usage
 
@@ -80,7 +82,7 @@ Consider two servers with the same service, but only one should be active at a t
 1. Both containers exist: `primary-container` and `backup-container`
 2. Primary is running, backup is stopped
 3. Primary service becomes unhealthy (e.g., database connection lost)
-4. After 3 failed checks (30 seconds with default settings), watchdog:
+4. After 3 failed checks (taking up to 30 seconds with default settings), watchdog:
    - Stops `primary-container`
    - Starts `backup-container`
 5. After 60 seconds, watchdog attempts to start primary
@@ -131,7 +133,11 @@ The watchdog provides detailed logging:
 [2024-01-07 12:00:00]   CONTAINER_NAME: primary-container
 [2024-01-07 12:00:00]   BACKUP_CONTAINER_NAME: backup-container
 [2024-01-07 12:00:00] ===========================================
-[2024-01-07 12:00:10] Primary service is healthy
+[2024-01-07 12:00:10] Primary service check failed (1/3)
+[2024-01-07 12:00:20] Primary service check failed (2/3)
+[2024-01-07 12:00:30] Primary service check failed (3/3)
+[2024-01-07 12:00:30] FAILOVER: Primary service has failed 3 times
+[2024-01-07 12:00:30] FAILOVER: Stopping primary container and starting backup
 ```
 
 ## License

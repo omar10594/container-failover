@@ -12,6 +12,8 @@ FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
 RECOVER_SECONDS="${RECOVER_SECONDS:-60}"
 CONTAINER_NAME="${CONTAINER_NAME:-primary-container}"
 BACKUP_CONTAINER_NAME="${BACKUP_CONTAINER_NAME:-backup-container}"
+HEALTH_CHECK_TIMEOUT="${HEALTH_CHECK_TIMEOUT:-5}"
+CONTAINER_START_WAIT="${CONTAINER_START_WAIT:-5}"
 
 # Internal state variables
 fail_count=0
@@ -24,7 +26,7 @@ log() {
 
 check_health() {
     local url=$1
-    if wget --spider --timeout=5 --tries=1 "$url" 2>/dev/null; then
+    if wget --spider --timeout="$HEALTH_CHECK_TIMEOUT" --tries=1 "$url" 2>/dev/null; then
         return 0
     else
         return 1
@@ -51,11 +53,6 @@ start_container() {
     fi
 }
 
-is_container_running() {
-    local container=$1
-    docker ps -q -f name="^${container}$" | grep -q .
-}
-
 perform_failover() {
     log "FAILOVER: Primary service has failed $FAIL_THRESHOLD times"
     log "FAILOVER: Stopping primary container and starting backup"
@@ -78,7 +75,8 @@ attempt_recovery() {
         log "RECOVERY: Attempting to recover primary service"
         
         start_container "$CONTAINER_NAME"
-        sleep 5
+        # Wait for container to start before checking health
+        sleep "$CONTAINER_START_WAIT"
         
         if check_health "$PRIMARY_HEALTH_URL"; then
             log "RECOVERY: Primary service is healthy, switching back"
@@ -113,7 +111,6 @@ while true; do
                 log "Primary service recovered (was failing $fail_count times)"
             fi
             fail_count=0
-            log "Primary service is healthy"
         else
             fail_count=$((fail_count + 1))
             log "Primary service check failed ($fail_count/$FAIL_THRESHOLD)"
