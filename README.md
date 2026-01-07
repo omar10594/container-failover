@@ -229,7 +229,11 @@ The watchdog provides detailed logging:
 [2024-01-07 12:00:30] Primary service check failed (3/3)
 [2024-01-07 12:00:30] FAILOVER: Primary service has failed 3 times
 [2024-01-07 12:00:30] FAILOVER: Starting backup container
-[2024-01-07 12:00:30] FAILOVER: Stopping primary container and starting backup
+[2024-01-07 12:00:30] Starting container: backup-container
+[2024-01-07 12:00:30] FAILOVER: Completed. Backup container is now active
+[2024-01-07 12:01:30] RECOVERY: Checking if primary service is available again
+[2024-01-07 12:01:30] RECOVERY: Primary service is healthy, stopping backup
+[2024-01-07 12:01:30] RECOVERY: Completed. Primary service is active, backup stopped
 ```
 
 ## License
