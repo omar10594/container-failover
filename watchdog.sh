@@ -3,8 +3,6 @@
 # Container Failover Watchdog Script
 # Monitors a primary service and manages container failover
 
-set -e
-
 # Configuration from environment variables with defaults
 PRIMARY_HEALTH_URL="${PRIMARY_HEALTH_URL:-http://localhost:8080/health}"
 CHECK_EVERY="${CHECK_EVERY:-10}"
@@ -37,7 +35,9 @@ stop_container() {
     local container=$1
     log "Stopping container: $container"
     if docker ps -q -f name="^${container}$" | grep -q .; then
-        docker stop "$container" || log "Warning: Failed to stop $container"
+        if ! docker stop "$container" 2>/dev/null; then
+            log "Warning: Failed to stop $container"
+        fi
     else
         log "Container $container is not running"
     fi
@@ -47,7 +47,9 @@ start_container() {
     local container=$1
     log "Starting container: $container"
     if docker ps -a -q -f name="^${container}$" | grep -q .; then
-        docker start "$container" || log "Warning: Failed to start $container"
+        if ! docker start "$container" 2>/dev/null; then
+            log "Warning: Failed to start $container"
+        fi
     else
         log "Container $container does not exist"
     fi
